@@ -99,6 +99,26 @@ Companion to `DESIGN.md`. Five phases, each with a concrete deliverable and a fa
 
 ---
 
+## Addendum — `stars.csv` join evaluation (post-Phase 5)
+
+A second data source, `stars.csv` (972 rows, joinable to `exoplanets.csv` on `star_id`), was evaluated as a potential upgrade.
+
+**What we checked**
+- Column overlap: every `stars.csv` column maps to an existing `exoplanets.csv` column (`star_name`↔`hostname`, `teff_k`↔`st_teff`, `mass_solar`↔`st_mass`, `radius_solar`↔`st_rad`, `metallicity_fe_h`↔`st_met`, `distance_pc`↔`sy_dist`, `ra_deg`/`dec_deg`↔`ra`/`dec`, `num_planets`↔`sy_pnum`).
+- Per-column null rates in each source.
+- Disagreement rate where both sources have a value.
+
+**Verdict — do not join for this chart.**
+- Null rates are identical to one decimal across all six numeric overlaps.
+- Only 2 planet-rows total (1 `st_teff`, 1 `st_met`) could be filled from `stars.csv` — not worth the plumbing.
+- Numeric disagreement is rare (4–6 rows out of ~1,150 per column); neither source is meaningfully cleaner.
+- All 972 stars in `stars.csv` are already represented in `exoplanets.csv` via 972 unique `star_id`s.
+
+**Optional follow-up (separate plan, not in this one)**
+- `stars.csv` is convenient if a star-centric companion chart is later commissioned: one row per star avoids a groupby. Candidates: metallicity vs. `num_planets`, an HR-diagram-ish `radius_solar` vs. `teff_k` sized by multiplicity, or an Aitoff sky map of hosts.
+
+---
+
 ## Out of scope for this plan
 - Interactive tooltips / hover labels (would require Plotly or Bokeh; static figure is sufficient for the stated audience).
 - Error bars on `pl_rade` or `insolation` (DESIGN.md §"What we're leaving out").
