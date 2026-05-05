@@ -3,9 +3,9 @@ namespace CodeScanner.Tests;
 public class SmokeTests
 {
     [Fact]
-    public void ProgramMain_ReturnsZero()
+    public async Task ProgramMain_NoArgs_ExitsNonZero()
     {
-        var exit = Program.Main(Array.Empty<string>());
-        Assert.Equal(0, exit);
+        var exit = await Program.Main(Array.Empty<string>());
+        Assert.NotEqual(0, exit);
     }
 }

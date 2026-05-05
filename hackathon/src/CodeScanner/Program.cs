@@ -2,5 +2,5 @@ namespace CodeScanner;
 
 public static class Program
 {
-    public static int Main(string[] args) => 0;
+    public static Task<int> Main(string[] args) => Cli.RunAsync(args);
 }
