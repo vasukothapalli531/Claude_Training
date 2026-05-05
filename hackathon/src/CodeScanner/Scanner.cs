@@ -62,4 +62,38 @@ public static class Scanner
         }
         return false;
     }
+
+    public static (FileEntry Entry, ScanError? Error) ProcessFile(string path)
+    {
+        var extension = Path.GetExtension(path);
+        var language = Languages.Classify(extension);
+
+        bool isBinary;
+        try
+        {
+            isBinary = IsBinary(path);
+        }
+        catch (Exception ex)
+        {
+            var entryOnError = new FileEntry(path, extension, language, Lines: 0, IsBinary: false);
+            return (entryOnError, new ScanError(path, $"{ex.GetType().Name}: {ex.Message}"));
+        }
+
+        if (isBinary)
+        {
+            var binEntry = new FileEntry(path, extension, language, Lines: 0, IsBinary: true);
+            return (binEntry, new ScanError(path, "binary file, lines not counted"));
+        }
+
+        try
+        {
+            var lines = CountLines(path);
+            return (new FileEntry(path, extension, language, lines, IsBinary: false), null);
+        }
+        catch (Exception ex)
+        {
+            var entryOnError = new FileEntry(path, extension, language, Lines: 0, IsBinary: false);
+            return (entryOnError, new ScanError(path, $"{ex.GetType().Name}: {ex.Message}"));
+        }
+    }
 }
