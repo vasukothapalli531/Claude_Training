@@ -173,4 +173,106 @@ public class ScannerTests
         Assert.Equal(".tsx", entry.Extension);
         Assert.Equal("TypeScript", entry.Language);
     }
+
+    [Fact]
+    public void Scan_EmptyDirectory_ReturnsEmptyResult()
+    {
+        using var tree = new TempTree();
+
+        var result = Scanner.Scan(tree.Root, new ScanOptions());
+
+        Assert.Equal(tree.Root, result.Root);
+        Assert.Empty(result.FileEntries);
+        Assert.Empty(result.Errors);
+    }
+
+    [Fact]
+    public void Scan_FlatDirectoryWithMixedFiles_ReturnsAllEntries()
+    {
+        using var tree = new TempTree();
+        tree.WriteFile("a.cs",   "class A {}\n");
+        tree.WriteFile("b.py",   "x = 1\ny = 2\n");
+        tree.WriteFile("c.md",   "# title\n");
+
+        var result = Scanner.Scan(tree.Root, new ScanOptions());
+
+        Assert.Equal(3, result.FileEntries.Count);
+        Assert.Contains(result.FileEntries, e => e.Language == "C#"        && e.Lines == 1);
+        Assert.Contains(result.FileEntries, e => e.Language == "Python"    && e.Lines == 2);
+        Assert.Contains(result.FileEntries, e => e.Language == "Markdown"  && e.Lines == 1);
+    }
+
+    [Fact]
+    public void Scan_DefaultExcludedDirsArePruned()
+    {
+        using var tree = new TempTree();
+        tree.WriteFile("real.cs",                "class R {}\n");
+        tree.WriteFile(".git/HEAD",              "ref: refs/heads/main\n");
+        tree.WriteFile("node_modules/x/index.js","console.log('x');\n");
+        tree.WriteFile("bin/Debug/foo.dll",      "binary-ish");
+        tree.WriteFile("obj/foo.o",              "binary-ish");
+
+        var result = Scanner.Scan(tree.Root, new ScanOptions());
+
+        Assert.Single(result.FileEntries);
+        Assert.Equal("C#", result.FileEntries[0].Language);
+        Assert.Contains(".git",         result.SkippedDirs);
+        Assert.Contains("node_modules", result.SkippedDirs);
+        Assert.Contains("bin",          result.SkippedDirs);
+        Assert.Contains("obj",          result.SkippedDirs);
+    }
+
+    [Fact]
+    public void Scan_ExtraExcludesArePrunedTooAdditively()
+    {
+        using var tree = new TempTree();
+        tree.WriteFile("keep.cs",     "class K {}\n");
+        tree.WriteFile("skipme/x.cs", "class S {}\n");
+
+        var options = new ScanOptions { ExtraExcludes = new[] { "skipme" } };
+        var result = Scanner.Scan(tree.Root, options);
+
+        Assert.Single(result.FileEntries);
+        Assert.Equal("keep.cs", Path.GetFileName(result.FileEntries[0].Path));
+        Assert.Contains("skipme", result.SkippedDirs);
+    }
+
+    [Fact]
+    public void Scan_NestedDirectoriesAreTraversed()
+    {
+        using var tree = new TempTree();
+        tree.WriteFile("top.cs",         "class T {}\n");
+        tree.WriteFile("a/mid.cs",       "class M {}\n");
+        tree.WriteFile("a/b/leaf.cs",    "class L {}\n");
+
+        var result = Scanner.Scan(tree.Root, new ScanOptions());
+
+        Assert.Equal(3, result.FileEntries.Count);
+    }
+
+    [Fact]
+    public void Scan_BinaryFileIsCountedButLogsError()
+    {
+        using var tree = new TempTree();
+        tree.WriteFile("a.cs", "class A {}\n");
+        tree.WriteBytes("blob.bin", new byte[] { 0x00, 0x01, 0x02 });
+
+        var result = Scanner.Scan(tree.Root, new ScanOptions());
+
+        Assert.Equal(2, result.FileEntries.Count);
+        Assert.Contains(result.FileEntries, e => e.IsBinary);
+        Assert.Contains(result.Errors, err => err.Reason.Contains("binary"));
+    }
+
+    [Fact]
+    public void Scan_DotfilesAreIncluded()
+    {
+        using var tree = new TempTree();
+        tree.WriteFile(".eslintrc.js",  "module.exports = {};\n");
+        tree.WriteFile(".env.example",  "FOO=bar\n");
+
+        var result = Scanner.Scan(tree.Root, new ScanOptions());
+
+        Assert.Equal(2, result.FileEntries.Count);
+    }
 }

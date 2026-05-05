@@ -63,6 +63,105 @@ public static class Scanner
         return false;
     }
 
+    public static readonly IReadOnlySet<string> DefaultExcludedDirs =
+        new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            ".git", "node_modules", "__pycache__",
+            ".venv", "venv", ".pytest_cache",
+            "dist", "build",
+            ".mypy_cache", ".ruff_cache",
+            "bin", "obj",
+        };
+
+    public static ScanResult Scan(string root, ScanOptions options)
+    {
+        var entries = new List<FileEntry>();
+        var errors = new List<ScanError>();
+        var skippedDirs = new HashSet<string>(StringComparer.Ordinal);
+
+        var excludeSet = new HashSet<string>(DefaultExcludedDirs, StringComparer.OrdinalIgnoreCase);
+        foreach (var extra in options.ExtraExcludes) { excludeSet.Add(extra); }
+
+        var visitedRealPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        Walk(root);
+
+        return new ScanResult(
+            Root: root,
+            FileEntries: entries,
+            SkippedDirs: skippedDirs.OrderBy(s => s, StringComparer.Ordinal).ToList(),
+            Errors: errors);
+
+        void Walk(string dir)
+        {
+            if (options.FollowSymlinks)
+            {
+                string real;
+                try { real = Path.GetFullPath(dir); }
+                catch (Exception ex) { errors.Add(new ScanError(dir, $"{ex.GetType().Name}: {ex.Message}")); return; }
+                if (!visitedRealPaths.Add(real))
+                {
+                    errors.Add(new ScanError(dir, "symlink loop"));
+                    return;
+                }
+            }
+
+            string[] subdirs;
+            string[] files;
+            try
+            {
+                subdirs = Directory.GetDirectories(dir);
+                files   = Directory.GetFiles(dir);
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                errors.Add(new ScanError(dir, $"UnauthorizedAccessException: {ex.Message}"));
+                return;
+            }
+            catch (Exception ex)
+            {
+                errors.Add(new ScanError(dir, $"{ex.GetType().Name}: {ex.Message}"));
+                return;
+            }
+
+            foreach (var file in files)
+            {
+                var info = new FileInfo(file);
+                if (info.LinkTarget is not null && !options.FollowSymlinks)
+                {
+                    continue;
+                }
+                try
+                {
+                    var (entry, error) = ProcessFile(file);
+                    entries.Add(entry);
+                    if (error is not null) { errors.Add(error); }
+                }
+                catch (Exception ex)
+                {
+                    errors.Add(new ScanError(file, $"{ex.GetType().Name}: {ex.Message}"));
+                }
+            }
+
+            foreach (var sub in subdirs)
+            {
+                var name = Path.GetFileName(sub);
+                if (excludeSet.Contains(name))
+                {
+                    skippedDirs.Add(name);
+                    continue;
+                }
+
+                var dirInfo = new DirectoryInfo(sub);
+                if (dirInfo.LinkTarget is not null && !options.FollowSymlinks)
+                {
+                    continue;
+                }
+
+                Walk(sub);
+            }
+        }
+    }
+
     public static (FileEntry Entry, ScanError? Error) ProcessFile(string path)
     {
         var extension = Path.GetExtension(path);
