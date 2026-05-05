@@ -126,4 +126,90 @@ public class ReportTests
         Assert.Equal("C:/some/dir/file.bin",
             root.GetProperty("scanned").GetProperty("errors")[0].GetProperty("path").GetString());
     }
+
+    [Fact]
+    public void Serialize_BackwardsCompat_NoAnalysisKeysWhenAnalysisEmpty()
+    {
+        var result = new ScanResult("C:/x", Array.Empty<FileEntry>(), Array.Empty<string>(), Array.Empty<ScanError>());
+        var analysis = new AnalysisResult(Array.Empty<SmellFinding>(), Array.Empty<SecurityFinding>(), Array.Empty<ScanError>());
+        var options = new ScanOptions();
+
+        var json = Report.Serialize(result, analysis, options, pretty: false);
+        var root = Parse(json);
+
+        Assert.False(root.TryGetProperty("smells", out _));
+        Assert.False(root.TryGetProperty("securityIssues", out _));
+    }
+
+    [Fact]
+    public void Serialize_IncludesSmellsWhenSmellsFlagOn()
+    {
+        var result = new ScanResult(
+            "C:/x",
+            new[] { new FileEntry("a.cs", ".cs", "C#", 10, false) },
+            Array.Empty<string>(), Array.Empty<ScanError>());
+
+        var analysis = new AnalysisResult(
+            Smells: new[] { new SmellFinding("long_function", "medium", "a.cs", "Foo", 1, 80, 80, 50, "msg") },
+            SecurityFindings: Array.Empty<SecurityFinding>(),
+            Errors: Array.Empty<ScanError>());
+
+        var options = new ScanOptions { Smells = true };
+
+        var json = Report.Serialize(result, analysis, options, pretty: false);
+        var root = Parse(json);
+
+        Assert.Equal(1, root.GetProperty("smells").GetArrayLength());
+        Assert.Equal("long_function", root.GetProperty("smells")[0].GetProperty("type").GetString());
+
+        var lang = root.GetProperty("languages").GetProperty("C#");
+        Assert.Equal(1, lang.GetProperty("smells").GetProperty("medium").GetInt32());
+        Assert.Equal(1, lang.GetProperty("smells").GetProperty("total").GetInt32());
+    }
+
+    [Fact]
+    public void Serialize_IncludesSecurityWhenSecurityFlagOn()
+    {
+        var result = new ScanResult(
+            "C:/x",
+            new[] { new FileEntry("a.cs", ".cs", "C#", 10, false) },
+            Array.Empty<string>(), Array.Empty<ScanError>());
+
+        var analysis = new AnalysisResult(
+            Smells: Array.Empty<SmellFinding>(),
+            SecurityFindings: new[] {
+                new SecurityFinding("hardcoded_secret","aws_access_key","high","a.cs",1,5,"snip","AWS detected")
+            },
+            Errors: Array.Empty<ScanError>());
+
+        var options = new ScanOptions { Security = true };
+        var json = Report.Serialize(result, analysis, options, pretty: false);
+        var root = Parse(json);
+
+        Assert.Equal(1, root.GetProperty("securityIssues").GetArrayLength());
+        Assert.Equal("aws_access_key",
+            root.GetProperty("securityIssues")[0].GetProperty("subtype").GetString());
+
+        var lang = root.GetProperty("languages").GetProperty("C#");
+        Assert.Equal(1, lang.GetProperty("security").GetProperty("high").GetInt32());
+    }
+
+    [Fact]
+    public void Serialize_AnalysisErrorsMergedIntoScannedErrors()
+    {
+        var result = new ScanResult("C:/x", Array.Empty<FileEntry>(), Array.Empty<string>(),
+            new[] { new ScanError("a.bin", "binary file, lines not counted") });
+
+        var analysis = new AnalysisResult(
+            Smells: Array.Empty<SmellFinding>(),
+            SecurityFindings: Array.Empty<SecurityFinding>(),
+            Errors: new[] { new ScanError("big.txt", "file too large for security scan") });
+
+        var options = new ScanOptions { Security = true };
+        var json = Report.Serialize(result, analysis, options, pretty: false);
+        var root = Parse(json);
+
+        var errs = root.GetProperty("scanned").GetProperty("errors");
+        Assert.Equal(2, errs.GetArrayLength());
+    }
 }
