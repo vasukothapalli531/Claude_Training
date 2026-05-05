@@ -52,4 +52,69 @@ public class ScannerTests
 
         Assert.False(Scanner.IsBinary(path));
     }
+
+    [Fact]
+    public void CountLines_EmptyFile_ReturnsZero()
+    {
+        using var tree = new TempTree();
+        var path = tree.WriteFile("empty.txt", string.Empty);
+
+        Assert.Equal(0, Scanner.CountLines(path));
+    }
+
+    [Fact]
+    public void CountLines_SingleLineWithNewline_ReturnsOne()
+    {
+        using var tree = new TempTree();
+        var path = tree.WriteFile("one.txt", "hello\n");
+
+        Assert.Equal(1, Scanner.CountLines(path));
+    }
+
+    [Fact]
+    public void CountLines_SingleLineNoNewline_ReturnsOne()
+    {
+        using var tree = new TempTree();
+        var path = tree.WriteFile("one.txt", "hello");
+
+        Assert.Equal(1, Scanner.CountLines(path));
+    }
+
+    [Fact]
+    public void CountLines_ThreeLinesWithTrailingNewline_ReturnsThree()
+    {
+        using var tree = new TempTree();
+        var path = tree.WriteFile("three.txt", "a\nb\nc\n");
+
+        Assert.Equal(3, Scanner.CountLines(path));
+    }
+
+    [Fact]
+    public void CountLines_ThreeLinesNoTrailingNewline_ReturnsThree()
+    {
+        using var tree = new TempTree();
+        var path = tree.WriteFile("three.txt", "a\nb\nc");
+
+        Assert.Equal(3, Scanner.CountLines(path));
+    }
+
+    [Fact]
+    public void CountLines_LargeFileAcrossBuffers_ReturnsExactCount()
+    {
+        using var tree = new TempTree();
+        var sb = new System.Text.StringBuilder();
+        for (var i = 0; i < 10_000; i++) { sb.Append("line ").Append(i).Append('\n'); }
+        var path = tree.WriteFile("big.txt", sb.ToString());
+
+        Assert.Equal(10_000, Scanner.CountLines(path));
+    }
+
+    [Fact]
+    public void CountLines_OneByteFile_ReturnsOne()
+    {
+        using var tree = new TempTree();
+        var path = tree.WriteFile("byte.txt", "x");
+
+        Assert.Equal(1, Scanner.CountLines(path));
+    }
 }
