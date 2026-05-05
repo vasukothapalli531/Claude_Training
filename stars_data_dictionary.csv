@@ -1,0 +1,12 @@
+column_name,data_type,units,description
+star_id,integer,,Unique identifier for the star
+star_name,string,,Name of the host star (join key with planets hostname)
+teff_k,float,Kelvin,Stellar effective temperature
+mass_solar,float,Solar masses,Stellar mass
+radius_solar,float,Solar radii,Stellar radius
+metallicity_fe_h,float,dex,Stellar metallicity ([Fe/H])
+distance_pc,float,parsecs,Distance from Earth
+ra_deg,float,degrees,Right Ascension (J2000)
+dec_deg,float,degrees,Declination (J2000)
+num_planets,integer,,Number of known planets orbiting this star
+
