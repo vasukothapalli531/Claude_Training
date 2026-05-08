@@ -228,4 +228,87 @@ public class CliTests
         Assert.Contains("eval", securitySubtypes);
         Assert.Contains("new_function", securitySubtypes);
     }
+
+    [Fact]
+    public void Cli_HtmlFlag_WritesFile()
+    {
+        using var tree = new TempTree();
+        tree.WriteFile("a.cs", "class A {}\n");
+        var outFile = Path.Combine(tree.Root, "report.html");
+
+        var (exit, stdout, _) = RunCli(tree.Root, "--html", outFile);
+
+        Assert.Equal(0, exit);
+        Assert.Empty(stdout.Trim());
+        Assert.True(File.Exists(outFile));
+        var html = File.ReadAllText(outFile);
+        Assert.StartsWith("<!DOCTYPE html>", html);
+        Assert.Contains("id=\"scan-data\"", html);
+    }
+
+    [Fact]
+    public void Cli_HtmlFlag_WithAnalyze_EmbedsFindings()
+    {
+        using var tree = new TempTree();
+        var sb = new System.Text.StringBuilder();
+        sb.AppendLine("class C {");
+        sb.AppendLine("    void Foo(int a, int b, int c, int d, int e, int f) {");
+        for (var i = 0; i < 60; i++) { sb.AppendLine("        var x = 1;"); }
+        sb.AppendLine("    }");
+        sb.AppendLine("}");
+        tree.WriteFile("a.cs", sb.ToString());
+        var outFile = Path.Combine(tree.Root, "r.html");
+
+        var (exit, _, _) = RunCli(tree.Root, "--html", outFile, "--analyze");
+
+        Assert.Equal(0, exit);
+        var html = File.ReadAllText(outFile);
+        var match = System.Text.RegularExpressions.Regex.Match(
+            html,
+            "<script type=\"application/json\" id=\"scan-data\">(?<j>.*?)</script>",
+            System.Text.RegularExpressions.RegexOptions.Singleline);
+        Assert.True(match.Success);
+        var doc = System.Text.Json.JsonDocument.Parse(match.Groups["j"].Value);
+        Assert.True(doc.RootElement.GetProperty("smells").GetArrayLength() >= 1);
+    }
+
+    [Fact]
+    public void Cli_HtmlFlag_AndJsonOutput_BothProduced()
+    {
+        using var tree = new TempTree();
+        tree.WriteFile("a.cs", "class A {}\n");
+        var jsonFile = Path.Combine(tree.Root, "out.json");
+        var htmlFile = Path.Combine(tree.Root, "out.html");
+
+        var (exit, stdout, _) = RunCli(tree.Root, "--output", jsonFile, "--html", htmlFile);
+
+        Assert.Equal(0, exit);
+        Assert.Empty(stdout.Trim());
+        Assert.True(File.Exists(jsonFile));
+        Assert.True(File.Exists(htmlFile));
+
+        var jsonText = File.ReadAllText(jsonFile);
+        var html = File.ReadAllText(htmlFile);
+        var match = System.Text.RegularExpressions.Regex.Match(
+            html,
+            "<script type=\"application/json\" id=\"scan-data\">(?<j>.*?)</script>",
+            System.Text.RegularExpressions.RegexOptions.Singleline);
+        Assert.True(match.Success);
+
+        var embeddedJson = match.Groups["j"].Value.Replace("<\\/script>", "</script>");
+        Assert.Equal(jsonText, embeddedJson);
+    }
+
+    [Fact]
+    public void Cli_HtmlFlag_BadDirectory_ExitsTwo()
+    {
+        using var tree = new TempTree();
+        tree.WriteFile("a.cs", "class A {}\n");
+        var bogus = Path.Combine(tree.Root, "no", "such", "dir", "r.html");
+
+        var (exit, _, stderr) = RunCli(tree.Root, "--html", bogus);
+
+        Assert.Equal(2, exit);
+        Assert.Contains("error:", stderr);
+    }
 }

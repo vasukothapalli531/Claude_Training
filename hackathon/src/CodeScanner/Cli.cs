@@ -24,11 +24,12 @@ public static class Cli
             Description = "Glob patterns to skip during security scan only (additive)",
             AllowMultipleArgumentsPerToken = true,
         };
+        var htmlOpt = new Option<string?>("--html") { Description = "Write a self-contained HTML report to this file" };
 
         var root = new RootCommand("Recursively scan a directory and emit JSON file/line statistics.")
         {
             pathArg, outputOpt, excludeOpt, followOpt, prettyOpt, verboseOpt,
-            smellsOpt, securityOpt, analyzeOpt, securitySkipOpt,
+            smellsOpt, securityOpt, analyzeOpt, securitySkipOpt, htmlOpt,
         };
 
         root.SetAction(parseResult =>
@@ -43,10 +44,11 @@ public static class Cli
             var security = parseResult.GetValue(securityOpt);
             var analyze  = parseResult.GetValue(analyzeOpt);
             var skip     = parseResult.GetValue(securitySkipOpt) ?? Array.Empty<string>();
+            var html     = parseResult.GetValue(htmlOpt);
 
             if (analyze) { smells = true; security = true; }
 
-            return Execute(path, output, excludes, follow, pretty, verbose, smells, security, skip);
+            return Execute(path, output, excludes, follow, pretty, verbose, smells, security, skip, html);
         });
 
         return await root.Parse(args).InvokeAsync();
@@ -61,7 +63,8 @@ public static class Cli
         bool verbose,
         bool smells,
         bool security,
-        string[] securitySkipGlobs)
+        string[] securitySkipGlobs,
+        string? htmlPath)
     {
         if (!Directory.Exists(path))
         {
@@ -106,9 +109,18 @@ public static class Cli
                     Array.Empty<ScanError>());
             }
 
+            // JSON output (stdout or --output file).
             var json = Report.Serialize(result, analysis, options, pretty);
-
-            if (output is null)
+            if (htmlPath is not null)
+            {
+                if (output is not null)
+                {
+                    File.WriteAllText(output, json);
+                    if (verbose) { Console.Error.WriteLine($"info: wrote {output}"); }
+                }
+                // else: skip stdout when --html is set without --output, to keep it quiet.
+            }
+            else if (output is null)
             {
                 Console.Out.WriteLine(json);
             }
@@ -116,6 +128,22 @@ public static class Cli
             {
                 File.WriteAllText(output, json);
                 if (verbose) { Console.Error.WriteLine($"info: wrote {output}"); }
+            }
+
+            // HTML output.
+            if (htmlPath is not null)
+            {
+                try
+                {
+                    var html = HtmlReport.Render(result, analysis, options, DateTimeOffset.UtcNow);
+                    File.WriteAllText(htmlPath, html);
+                    if (verbose) { Console.Error.WriteLine($"info: wrote {htmlPath}"); }
+                }
+                catch (Exception ex)
+                {
+                    Console.Error.WriteLine($"error: cannot write HTML report: {ex.GetType().Name}: {ex.Message}");
+                    return 2;
+                }
             }
 
             if (verbose)
