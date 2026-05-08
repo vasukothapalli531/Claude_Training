@@ -6,7 +6,8 @@ public sealed record AnalysisResult(
     IReadOnlyList<SmellFinding> Smells,
     IReadOnlyList<SecurityFinding> SecurityFindings,
     IReadOnlyList<ScanError> Errors,
-    int TotalFunctions);
+    int TotalFunctions,
+    AiSummary? AiSummary = null);
 
 public sealed class AnalyzerHost
 {

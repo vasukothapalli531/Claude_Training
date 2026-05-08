@@ -33,7 +33,8 @@ public sealed record SmellFinding(
     int EndLine,
     int Value,
     int Threshold,
-    string Message);
+    string Message,
+    AiSuggestion? AiSuggestion = null);
 
 public sealed record SecurityFinding(
     string Type,
@@ -43,8 +44,24 @@ public sealed record SecurityFinding(
     int Line,
     int Column,
     string Snippet,
-    string Message);
+    string Message,
+    AiSuggestion? AiSuggestion = null);
 
 public sealed record SmellAnalysisResult(
     IReadOnlyList<SmellFinding> Findings,
     int TotalFunctions);
+
+public sealed record AiSuggestion(
+    string Explanation,
+    string FixedSnippet,
+    string Model,
+    long ElapsedMs);
+
+public sealed record AiSummary(
+    string Model,
+    int TotalCalls,
+    int Successful,
+    int Failed,
+    long TotalElapsedMs,
+    int QualityScoreIfAllFixed,
+    int QualityScoreDelta);
