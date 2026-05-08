@@ -2,6 +2,13 @@ namespace CodeScanner;
 
 internal static class TemplateRenderer
 {
+    /// <summary>
+    /// Substitutes {{key}} placeholders with values from the dictionary.
+    /// Values are substituted in iteration order; a value that itself contains
+    /// {{...}} text matching another key may be re-processed by later iterations.
+    /// Callers should escape values containing {{ before passing them in if this
+    /// matters; for the HTML template's known value set it does not.
+    /// </summary>
     public static string Render(string template, IReadOnlyDictionary<string, string> values)
     {
         var sb = new System.Text.StringBuilder(template);

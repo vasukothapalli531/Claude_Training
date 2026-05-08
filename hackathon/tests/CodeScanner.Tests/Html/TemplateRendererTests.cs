@@ -26,6 +26,7 @@ public class TemplateRendererTests
     [Theory]
     [InlineData("plain text", "plain text")]
     [InlineData("a < b", "a &lt; b")]
+    [InlineData("a > b", "a &gt; b")]
     [InlineData("Tom & Jerry", "Tom &amp; Jerry")]
     [InlineData("\"quoted\"", "&quot;quoted&quot;")]
     [InlineData("'single'", "&#39;single&#39;")]
