@@ -352,4 +352,66 @@ public class CliTests
         Assert.True(doc.RootElement.TryGetProperty("totalFunctions", out _));
         Assert.True(doc.RootElement.TryGetProperty("fileRiskScores", out _));
     }
+
+    [Fact]
+    public void Cli_FixSuggestions_NoApiKey_ExitsOne()
+    {
+        using var tree = new TempTree();
+        tree.WriteFile("a.cs", "class A {}\n");
+
+        var (exit, _, stderr) = RunCli(tree.Root, "--analyze", "--fix-suggestions");
+
+        Assert.Equal(1, exit);
+        Assert.Contains("ANTHROPIC_API_KEY", stderr);
+    }
+
+    [Fact]
+    public void Cli_FixSuggestions_StubMode_EmbedsAiSuggestionInJson()
+    {
+        using var tree = new TempTree();
+        var sb = new System.Text.StringBuilder();
+        sb.AppendLine("class C {");
+        sb.AppendLine("    void Foo(int a, int b, int c, int d, int e, int f) {");
+        for (var i = 0; i < 60; i++) { sb.AppendLine("        var x = 1;"); }
+        sb.AppendLine("    }");
+        sb.AppendLine("}");
+        tree.WriteFile("a.cs", sb.ToString());
+
+        var psi = new System.Diagnostics.ProcessStartInfo("dotnet")
+        {
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            UseShellExecute = false,
+            StandardOutputEncoding = System.Text.Encoding.UTF8,
+            StandardErrorEncoding = System.Text.Encoding.UTF8,
+        };
+        psi.Environment["CODESCANNER_TEST_AI_STUB"] = "1";
+        psi.ArgumentList.Add("run");
+        psi.ArgumentList.Add("--no-build");
+        psi.ArgumentList.Add("--project");
+        psi.ArgumentList.Add(FindSrcCsproj());
+        psi.ArgumentList.Add("--");
+        psi.ArgumentList.Add(tree.Root);
+        psi.ArgumentList.Add("--analyze");
+        psi.ArgumentList.Add("--fix-suggestions");
+
+        using var p = System.Diagnostics.Process.Start(psi)!;
+        var stdout = p.StandardOutput.ReadToEnd();
+        p.StandardError.ReadToEnd();
+        p.WaitForExit();
+
+        Assert.Equal(0, p.ExitCode);
+
+        var doc = System.Text.Json.JsonDocument.Parse(stdout);
+        Assert.True(doc.RootElement.TryGetProperty("aiSummary", out var summary));
+        Assert.True(summary.GetProperty("totalCalls").GetInt32() >= 1);
+        Assert.True(summary.GetProperty("successful").GetInt32() >= 1);
+
+        var smells = doc.RootElement.GetProperty("smells");
+        Assert.True(smells.GetArrayLength() >= 1);
+        var first = smells[0];
+        Assert.True(first.TryGetProperty("aiSuggestion", out var ai));
+        Assert.Equal("stub", ai.GetProperty("explanation").GetString());
+        Assert.Equal("stub-fix", ai.GetProperty("fixedSnippet").GetString());
+    }
 }

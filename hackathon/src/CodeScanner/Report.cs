@@ -81,33 +81,49 @@ public static class Report
         if (options.Smells)
         {
             doc["smells"] = new JsonArray(
-                analysis.Smells.Select(s => (JsonNode?)new JsonObject
+                analysis.Smells.Select(s =>
                 {
-                    ["type"]      = s.Type,
-                    ["severity"]  = s.Severity,
-                    ["file"]      = NormalizePath(s.File),
-                    ["name"]      = s.Name,
-                    ["startLine"] = s.StartLine,
-                    ["endLine"]   = s.EndLine,
-                    ["value"]     = s.Value,
-                    ["threshold"] = s.Threshold,
-                    ["message"]   = s.Message,
+                    var obj = new JsonObject
+                    {
+                        ["type"]      = s.Type,
+                        ["severity"]  = s.Severity,
+                        ["file"]      = NormalizePath(s.File),
+                        ["name"]      = s.Name,
+                        ["startLine"] = s.StartLine,
+                        ["endLine"]   = s.EndLine,
+                        ["value"]     = s.Value,
+                        ["threshold"] = s.Threshold,
+                        ["message"]   = s.Message,
+                    };
+                    if (s.AiSuggestion is not null)
+                    {
+                        obj["aiSuggestion"] = SuggestionToJson(s.AiSuggestion);
+                    }
+                    return (JsonNode?)obj;
                 }).ToArray());
         }
 
         if (options.Security)
         {
             doc["securityIssues"] = new JsonArray(
-                analysis.SecurityFindings.Select(s => (JsonNode?)new JsonObject
+                analysis.SecurityFindings.Select(s =>
                 {
-                    ["type"]     = s.Type,
-                    ["subtype"]  = s.Subtype,
-                    ["severity"] = s.Severity,
-                    ["file"]     = NormalizePath(s.File),
-                    ["line"]     = s.Line,
-                    ["column"]   = s.Column,
-                    ["snippet"]  = s.Snippet,
-                    ["message"]  = s.Message,
+                    var obj = new JsonObject
+                    {
+                        ["type"]     = s.Type,
+                        ["subtype"]  = s.Subtype,
+                        ["severity"] = s.Severity,
+                        ["file"]     = NormalizePath(s.File),
+                        ["line"]     = s.Line,
+                        ["column"]   = s.Column,
+                        ["snippet"]  = s.Snippet,
+                        ["message"]  = s.Message,
+                    };
+                    if (s.AiSuggestion is not null)
+                    {
+                        obj["aiSuggestion"] = SuggestionToJson(s.AiSuggestion);
+                    }
+                    return (JsonNode?)obj;
                 }).ToArray());
         }
 
@@ -127,6 +143,20 @@ public static class Report
             ["skippedDirs"] = skipped,
             ["errors"]      = errorsArr,
         };
+
+        if (analysis.AiSummary is not null)
+        {
+            doc["aiSummary"] = new JsonObject
+            {
+                ["model"]                  = analysis.AiSummary.Model,
+                ["totalCalls"]             = analysis.AiSummary.TotalCalls,
+                ["successful"]             = analysis.AiSummary.Successful,
+                ["failed"]                 = analysis.AiSummary.Failed,
+                ["totalElapsedMs"]         = analysis.AiSummary.TotalElapsedMs,
+                ["qualityScoreIfAllFixed"] = analysis.AiSummary.QualityScoreIfAllFixed,
+                ["qualityScoreDelta"]      = analysis.AiSummary.QualityScoreDelta,
+            };
+        }
 
         var jsonOptions = new JsonSerializerOptions { WriteIndented = pretty };
         return doc.ToJsonString(jsonOptions);
@@ -184,4 +214,12 @@ public static class Report
     };
 
     internal static string NormalizePath(string path) => path.Replace('\\', '/');
+
+    private static JsonNode SuggestionToJson(AiSuggestion s) => new JsonObject
+    {
+        ["explanation"]  = s.Explanation,
+        ["fixedSnippet"] = s.FixedSnippet,
+        ["model"]        = s.Model,
+        ["elapsedMs"]    = s.ElapsedMs,
+    };
 }
