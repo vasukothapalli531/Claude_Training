@@ -122,6 +122,35 @@ internal static class Template
     @media (max-width: 700px) {
       .kpis { grid-template-columns: repeat(2, 1fr); }
     }
+
+    /* AI banner */
+    .ai-banner { display: none; align-items: center; gap: 14px;
+      background: linear-gradient(135deg, rgba(168,85,247,0.18), rgba(59,130,246,0.18));
+      border: 1px solid rgba(168,85,247,0.4); border-radius: 10px;
+      padding: 12px 16px; margin-bottom: 18px; }
+    .ai-banner.shown { display: flex; }
+    .ai-banner .glyph { font-size: 22px; }
+    .ai-banner .text { color: var(--text); font-size: 13px; }
+    .ai-banner .text strong { font-weight: 700; }
+    .ai-banner .delta { color: #6ee7b7; font-weight: 700; margin-left: 8px; }
+    .ai-banner .model { color: var(--muted); font-size: 11px; margin-left: auto;
+      font-family: "JetBrains Mono", "Cascadia Mono", monospace; }
+
+    .ai-pill { display: inline-block; font-size: 9px; padding: 1px 6px; border-radius: 8px; font-weight: 700;
+      letter-spacing: 0.04em; text-transform: uppercase; margin-right: 4px;
+      background: rgba(168,85,247,0.18); color: #c4b5fd; }
+
+    .ai-suggestion { margin-top: 8px; padding: 8px 10px; border-left: 2px solid #a855f7;
+      background: rgba(168,85,247,0.06); border-radius: 0 4px 4px 0; }
+    .ai-suggestion .ai-toggle { cursor: pointer; color: #c4b5fd; font-size: 11px; font-weight: 600;
+      letter-spacing: 0.04em; text-transform: uppercase; user-select: none; }
+    .ai-suggestion .ai-toggle:hover { color: #ddd6fe; }
+    .ai-suggestion .ai-body { margin-top: 6px; }
+    .ai-suggestion .ai-body.hidden { display: none; }
+    .ai-suggestion .ai-body p { margin: 0 0 6px 0; font-size: 12px; color: var(--text-dim); }
+    .ai-suggestion .ai-body pre { margin: 0; padding: 8px 10px; background: #0a0c12;
+      border: 1px solid var(--border); border-radius: 4px; font-size: 11px;
+      overflow-x: auto; white-space: pre-wrap; word-break: break-all; }
   </style>
 </head>
 <body>
@@ -136,6 +165,15 @@ internal static class Template
         <span class="score"><span id="grade-score">0</span>/100</span>
       </div>
     </header>
+
+    <div class="ai-banner" id="ai-banner">
+      <div class="glyph">✨</div>
+      <div class="text">
+        <strong id="ai-banner-count">0</strong> AI fixes available
+        <span class="delta" id="ai-banner-delta">+0</span> points if applied
+      </div>
+      <div class="model" id="ai-banner-model">—</div>
+    </div>
 
     <section class="kpis">
       <div class="kpi blue"><div class="num" id="kpi-files">0</div><div class="lbl">Total Files</div></div>
@@ -185,6 +223,15 @@ internal static class Template
     var smells = data.smells || [];
     var sec    = data.securityIssues || [];
     var risks  = data.fileRiskScores || [];
+
+    var aiSummary = data.aiSummary || null;
+    if (aiSummary && aiSummary.successful > 0) {
+      document.getElementById('ai-banner-count').textContent = aiSummary.successful.toString();
+      var deltaSign = (aiSummary.qualityScoreDelta >= 0) ? '+' : '';
+      document.getElementById('ai-banner-delta').textContent = deltaSign + aiSummary.qualityScoreDelta;
+      document.getElementById('ai-banner-model').textContent = aiSummary.model;
+      document.getElementById('ai-banner').classList.add('shown');
+    }
 
     var grade = data.grade || 'A';
     document.getElementById('grade-letter').textContent = grade;
@@ -488,13 +535,46 @@ internal static class Template
       var title = document.createElement('strong');
       title.textContent = (f.subtype || f.type) + ' (' + f.severity + ')';
       li.appendChild(title);
+      if (f.aiSuggestion) {
+        var pill = document.createElement('span');
+        pill.className = 'ai-pill';
+        pill.textContent = 'AI fix';
+        title.appendChild(document.createTextNode(' '));
+        title.appendChild(pill);
+      }
       var meta = document.createElement('div');
       meta.className = 'meta';
       var lineNum = (f.line !== undefined ? f.line : f.startLine);
       meta.textContent = (lineNum ? ('line ' + lineNum + ' · ') : '') + f.message;
       li.appendChild(meta);
       if (f.snippet) { var pre = document.createElement('pre'); pre.textContent = f.snippet; li.appendChild(pre); }
+      if (f.aiSuggestion) {
+        li.appendChild(buildAiSuggestion(f.aiSuggestion));
+      }
       return li;
+    }
+    function buildAiSuggestion(ai) {
+      var wrap = document.createElement('div');
+      wrap.className = 'ai-suggestion';
+      var toggle = document.createElement('span');
+      toggle.className = 'ai-toggle';
+      toggle.textContent = '✨ Show fix';
+      wrap.appendChild(toggle);
+      var body = document.createElement('div');
+      body.className = 'ai-body hidden';
+      var expl = document.createElement('p');
+      expl.textContent = ai.explanation;
+      body.appendChild(expl);
+      var pre = document.createElement('pre');
+      pre.textContent = ai.fixedSnippet;
+      body.appendChild(pre);
+      wrap.appendChild(body);
+      toggle.addEventListener('click', function (e) {
+        e.stopPropagation();
+        body.classList.toggle('hidden');
+        toggle.textContent = body.classList.contains('hidden') ? '✨ Show fix' : '✨ Hide fix';
+      });
+      return wrap;
     }
     function expandFileRow(file) {
       var rows = document.querySelectorAll('#files-tbody tr.row-main');
