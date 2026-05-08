@@ -11,15 +11,25 @@ public class HtmlReportTests
         new ScanOptions());
 
     [Fact]
-    public void Render_EmptyResult_ProducesValidHtmlSkeleton()
+    public void Render_EmptyResult_ProducesValidDashboardSkeleton()
     {
         var (result, analysis, options) = Empty();
         var html = HtmlReport.Render(result, analysis, options, DateTimeOffset.UtcNow);
 
         Assert.StartsWith("<!DOCTYPE html>", html);
-        Assert.Contains("<html lang=\"en\">", html);
+        Assert.Contains("data-theme=\"dark\"", html);
         Assert.Contains("id=\"scan-data\"", html);
         Assert.Contains("chart.umd.min.js", html);
+        Assert.Contains("fonts.googleapis.com/css2?family=Inter", html);
+        Assert.Contains("id=\"grade-tile\"", html);
+        Assert.Contains("id=\"kpi-files\"", html);
+        Assert.Contains("id=\"kpi-quality\"", html);
+        Assert.Contains("id=\"kpi-critical\"", html);
+        Assert.Contains("id=\"kpi-fixtime\"", html);
+        Assert.Contains("id=\"chart-severity-donut\"", html);
+        Assert.Contains("id=\"chart-top-files-bar\"", html);
+        Assert.Contains("id=\"chart-quality-radar\"", html);
+        Assert.Contains("id=\"files-tbody\"", html);
         Assert.DoesNotContain("{{", html);
     }
 
