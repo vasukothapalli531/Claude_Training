@@ -1,6 +1,6 @@
 namespace CodeScanner;
 
-public static class HtmlReport
+internal static class HtmlReport
 {
     public static string Render(
         ScanResult result,
