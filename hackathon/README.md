@@ -12,12 +12,12 @@ dotnet build CodeScanner.sln
 
 ```powershell
 dotnet run --project src/CodeScanner -- <path> `
-  [--output report.json] [--pretty] `
+  [--output report.json] [--html report.html] [--pretty] `
   [--exclude name ...] [--follow-symlinks] [--verbose] `
   [--smells] [--security] [--analyze] [--security-skip glob ...]
 ```
 
-`--analyze` is shorthand for `--smells --security`.
+`--analyze` is shorthand for `--smells --security`. `--html` writes a self-contained HTML dashboard (KPI tiles, language charts, severity bar, file breakdown table, expandable findings). `--output` and `--html` may be combined.
 
 ## Install as a global tool
 
@@ -67,6 +67,15 @@ dotnet test CodeScanner.sln
 ```
 
 When neither `--smells` nor `--security` is set, the `smells`, `securityIssues`, and per-language `smells`/`security` keys are omitted (backwards-compatible with the original output).
+
+## HTML report
+
+```powershell
+dotnet run --project src/CodeScanner -- . --analyze --html report.html
+start report.html  # opens in default browser
+```
+
+The generated `report.html` is a single self-contained file. It loads Chart.js v4 from `cdn.jsdelivr.net` at view time (~80 KB). Embeds a complete copy of the scan JSON in `<script id="scan-data">` so the page renders the same dashboard whenever it's opened.
 
 ## Default skipped directories
 
