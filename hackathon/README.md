@@ -86,6 +86,27 @@ Inter font from Google Fonts. The report embeds the full scan JSON in `<script i
 
 The JSON output (`--output`) gains five additive fields: `qualityScore`, `grade`, `estimatedFixMinutes`, `totalFunctions`, and `fileRiskScores`.
 
+## AI fix suggestions (opt-in)
+
+```powershell
+$env:ANTHROPIC_API_KEY = "sk-ant-..."
+dotnet run --project src/CodeScanner -- . --analyze --fix-suggestions --html report.html
+```
+
+When `--fix-suggestions` is set, the CLI calls the Anthropic API once per finding (smell or security), embeds the explanation + fixed snippet into the JSON, and the dashboard renders an inline "✨ Show fix" toggle in each expanded finding plus a top banner summarising the optimistic quality-score delta.
+
+The HTML report stays a single shareable file — fixes are pre-baked at scan time, never requested from the browser.
+
+| Flag | Default | Purpose |
+|---|---|---|
+| `--fix-suggestions` | off | Enable AI suggestions pass |
+| `--ai-model <id>` | `claude-haiku-4-5` | Override model (`claude-sonnet-4-6` for higher quality) |
+| `--ai-concurrency <n>` | `4` | Max parallel API calls |
+
+Requires `ANTHROPIC_API_KEY` environment variable. Code snippets are sent to `api.anthropic.com`; secrets in security findings are sent in their already-redacted form.
+
+Cost (informational): ~$0.20 per scan with Haiku, ~$0.60 with Sonnet for ~150 findings.
+
 ## Default skipped directories
 
 `.git`, `node_modules`, `__pycache__`, `.venv`, `venv`, `.pytest_cache`, `dist`, `build`, `.mypy_cache`, `.ruff_cache`, `bin`, `obj`.
