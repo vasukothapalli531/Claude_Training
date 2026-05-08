@@ -215,4 +215,91 @@ public class ReportTests
         var errs = root.GetProperty("scanned").GetProperty("errors");
         Assert.Equal(2, errs.GetArrayLength());
     }
+
+    [Fact]
+    public void Serialize_AlwaysEmitsQualityFields_AdditiveToExistingShape()
+    {
+        var result = new ScanResult("/x", Array.Empty<FileEntry>(), Array.Empty<string>(), Array.Empty<ScanError>());
+        var analysis = new AnalysisResult(Array.Empty<SmellFinding>(), Array.Empty<SecurityFinding>(), Array.Empty<ScanError>(), 0);
+
+        var json = Report.Serialize(result, analysis, new ScanOptions(), pretty: false);
+        var root = Parse(json);
+
+        // New fields present
+        Assert.Equal(100, root.GetProperty("qualityScore").GetInt32());
+        Assert.Equal("A", root.GetProperty("grade").GetString());
+        Assert.Equal(0,  root.GetProperty("estimatedFixMinutes").GetInt32());
+        Assert.Equal(0,  root.GetProperty("totalFunctions").GetInt32());
+        Assert.Equal(0,  root.GetProperty("fileRiskScores").GetArrayLength());
+
+        // Existing fields still present
+        Assert.True(root.TryGetProperty("totalFiles", out _));
+        Assert.True(root.TryGetProperty("totalLines", out _));
+        Assert.True(root.TryGetProperty("languages",  out _));
+        Assert.True(root.TryGetProperty("scanned",    out _));
+    }
+
+    [Fact]
+    public void Serialize_QualityScoreReflectsFindings()
+    {
+        var result = new ScanResult("/x",
+            new[] { new FileEntry("a.cs", ".cs", "C#", 100, false) },
+            Array.Empty<string>(), Array.Empty<ScanError>());
+
+        var analysis = new AnalysisResult(
+            Smells: new[] { new SmellFinding("long_function", "high", "a.cs", "Foo", 1, 80, 80, 50, "msg") },
+            SecurityFindings: Array.Empty<SecurityFinding>(),
+            Errors: Array.Empty<ScanError>(),
+            TotalFunctions: 5);
+
+        var options = new ScanOptions { Smells = true };
+        var json = Report.Serialize(result, analysis, options, pretty: false);
+        var root = Parse(json);
+
+        Assert.Equal(95, root.GetProperty("qualityScore").GetInt32());
+        Assert.Equal("A", root.GetProperty("grade").GetString());
+        Assert.Equal(30, root.GetProperty("estimatedFixMinutes").GetInt32());
+        Assert.Equal(5,  root.GetProperty("totalFunctions").GetInt32());
+    }
+
+    [Fact]
+    public void Serialize_FileRiskScoresArray_SortedAndShaped()
+    {
+        var result = new ScanResult("/x",
+            new[]
+            {
+                new FileEntry("big.cs",   ".cs", "C#", 100, false),
+                new FileEntry("small.cs", ".cs", "C#", 20,  false),
+            },
+            Array.Empty<string>(), Array.Empty<ScanError>());
+
+        var analysis = new AnalysisResult(
+            Smells: new[]
+            {
+                new SmellFinding("long_function", "high",   "big.cs",   "Foo", 1, 80, 80, 50, "msg"),
+                new SmellFinding("long_function", "medium", "big.cs",   "Foo", 1, 80, 80, 50, "msg"),
+                new SmellFinding("long_function", "low",    "small.cs", "Bar", 1, 80, 80, 50, "msg"),
+            },
+            SecurityFindings: Array.Empty<SecurityFinding>(),
+            Errors: Array.Empty<ScanError>(),
+            TotalFunctions: 10);
+
+        var json = Report.Serialize(result, analysis, new ScanOptions { Smells = true }, pretty: false);
+        var root = Parse(json);
+
+        var arr = root.GetProperty("fileRiskScores");
+        Assert.Equal(2, arr.GetArrayLength());
+
+        // big.cs first (higher risk: 10+4 = 14)
+        var first = arr[0];
+        Assert.EndsWith("big.cs", first.GetProperty("file").GetString());
+        Assert.Equal(14, first.GetProperty("riskScore").GetInt32());
+        Assert.Equal(1,  first.GetProperty("high").GetInt32());
+        Assert.Equal(1,  first.GetProperty("medium").GetInt32());
+        Assert.Equal(0,  first.GetProperty("low").GetInt32());
+        Assert.Equal(100, first.GetProperty("lines").GetInt64());
+
+        // small.cs second
+        Assert.EndsWith("small.cs", arr[1].GetProperty("file").GetString());
+    }
 }

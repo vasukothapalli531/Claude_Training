@@ -17,6 +17,11 @@ public static class Report
         var totalFiles = 0L;
         var totalLines = 0L;
 
+        var qualityScore = RiskScoring.ComputeQualityScore(analysis.Smells, analysis.SecurityFindings);
+        var grade        = RiskScoring.GradeFor(qualityScore);
+        var fixMinutes   = RiskScoring.EstimatedFixMinutes(analysis.Smells, analysis.SecurityFindings);
+        var fileRisks    = RiskScoring.BuildFileRiskScores(result.FileEntries, analysis.Smells, analysis.SecurityFindings);
+
         var smellsByLang   = BuildSeverityMap(analysis.Smells, f => f.File, result);
         var securityByLang = BuildSeverityMap(analysis.SecurityFindings, f => f.File, result);
 
@@ -54,9 +59,23 @@ public static class Report
 
         var doc = new JsonObject
         {
-            ["totalFiles"] = totalFiles,
-            ["totalLines"] = totalLines,
-            ["languages"]  = languages,
+            ["totalFiles"]          = totalFiles,
+            ["totalLines"]          = totalLines,
+            ["languages"]           = languages,
+            ["qualityScore"]        = qualityScore,
+            ["grade"]               = grade,
+            ["estimatedFixMinutes"] = fixMinutes,
+            ["totalFunctions"]      = analysis.TotalFunctions,
+            ["fileRiskScores"]      = new JsonArray(
+                fileRisks.Select(r => (JsonNode?)new JsonObject
+                {
+                    ["file"]      = NormalizePath(r.File),
+                    ["riskScore"] = r.RiskScore,
+                    ["high"]      = r.High,
+                    ["medium"]    = r.Medium,
+                    ["low"]       = r.Low,
+                    ["lines"]     = r.Lines,
+                }).ToArray()),
         };
 
         if (options.Smells)
