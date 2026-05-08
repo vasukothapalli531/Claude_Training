@@ -311,4 +311,45 @@ public class CliTests
         Assert.Equal(2, exit);
         Assert.Contains("error:", stderr);
     }
+
+    [Fact]
+    public void Cli_HtmlFlag_DashboardContainsGradeAndKpis()
+    {
+        using var tree = new TempTree();
+        tree.WriteFile("a.cs", "class A {}\n");
+        var outFile = Path.Combine(tree.Root, "report.html");
+
+        var (exit, _, _) = RunCli(tree.Root, "--html", outFile);
+
+        Assert.Equal(0, exit);
+        var html = File.ReadAllText(outFile);
+        Assert.Contains("data-theme=\"dark\"", html);
+        Assert.Contains("id=\"grade-tile\"", html);
+        Assert.Contains("id=\"kpi-files\"", html);
+        Assert.Contains("id=\"chart-severity-donut\"", html);
+    }
+
+    [Fact]
+    public void Cli_HtmlFlag_EmbeddedJsonHasQualityFields()
+    {
+        using var tree = new TempTree();
+        tree.WriteFile("a.cs", "class A {}\n");
+        var outFile = Path.Combine(tree.Root, "report.html");
+
+        var (exit, _, _) = RunCli(tree.Root, "--html", outFile);
+
+        Assert.Equal(0, exit);
+        var html = File.ReadAllText(outFile);
+        var match = System.Text.RegularExpressions.Regex.Match(
+            html,
+            "<script type=\"application/json\" id=\"scan-data\">(?<j>.*?)</script>",
+            System.Text.RegularExpressions.RegexOptions.Singleline);
+        Assert.True(match.Success);
+        var doc = System.Text.Json.JsonDocument.Parse(match.Groups["j"].Value);
+        Assert.True(doc.RootElement.TryGetProperty("qualityScore", out _));
+        Assert.True(doc.RootElement.TryGetProperty("grade", out _));
+        Assert.True(doc.RootElement.TryGetProperty("estimatedFixMinutes", out _));
+        Assert.True(doc.RootElement.TryGetProperty("totalFunctions", out _));
+        Assert.True(doc.RootElement.TryGetProperty("fileRiskScores", out _));
+    }
 }
