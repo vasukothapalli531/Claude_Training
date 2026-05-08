@@ -337,8 +337,7 @@ internal static class Template
         var t = Math.min(1, (now - start) / duration);
         var eased = 1 - Math.pow(1 - t, 3);
         var v = Math.round(target * eased);
-        if (id === 'kpi-fixtime') el.textContent = formatMinutes(v);
-        else el.textContent = v.toLocaleString();
+        el.textContent = v.toLocaleString();
         if (t < 1) requestAnimationFrame(step);
       }
       requestAnimationFrame(step);
