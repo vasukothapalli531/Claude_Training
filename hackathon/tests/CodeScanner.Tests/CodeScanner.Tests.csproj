@@ -24,4 +24,9 @@
     <ProjectReference Include="..\..\src\CodeScanner\CodeScanner.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Compile Remove="fixtures\**\*.cs" />
+    <None Include="fixtures\**\*.*" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
 </Project>

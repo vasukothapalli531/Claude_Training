@@ -190,4 +190,42 @@ public class CliTests
         Assert.False(root.TryGetProperty("smells", out _));
         Assert.False(root.TryGetProperty("securityIssues", out _));
     }
+
+    private static string FindFixturesRoot()
+    {
+        var dir = AppContext.BaseDirectory;
+        while (dir is not null && !Directory.Exists(Path.Combine(dir, "fixtures")))
+        {
+            var parent = Path.GetDirectoryName(dir);
+            if (parent == dir) { break; }
+            dir = parent;
+        }
+        Assert.NotNull(dir);
+        return Path.Combine(dir!, "fixtures");
+    }
+
+    [Fact]
+    public void Cli_Analyze_OnFixtures_ProducesExpectedFindings()
+    {
+        var fixtures = FindFixturesRoot();
+        Assert.True(Directory.Exists(fixtures), $"fixtures missing at {fixtures}");
+
+        var (exit, stdout, _) = RunCli(fixtures, "--analyze");
+
+        Assert.Equal(0, exit);
+        var root = JsonDocument.Parse(stdout).RootElement;
+
+        var smellTypes = root.GetProperty("smells").EnumerateArray()
+            .Select(s => s.GetProperty("type").GetString()).ToHashSet();
+        Assert.Contains("long_function", smellTypes);
+        Assert.Contains("long_parameter_list", smellTypes);
+        Assert.Contains("deep_nesting", smellTypes);
+
+        var securitySubtypes = root.GetProperty("securityIssues").EnumerateArray()
+            .Select(s => s.GetProperty("subtype").GetString()).ToHashSet();
+        Assert.Contains("aws_access_key", securitySubtypes);
+        Assert.Contains("github_pat", securitySubtypes);
+        Assert.Contains("eval", securitySubtypes);
+        Assert.Contains("new_function", securitySubtypes);
+    }
 }
