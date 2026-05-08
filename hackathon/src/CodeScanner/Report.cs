@@ -1,4 +1,3 @@
-using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 
@@ -110,11 +109,7 @@ public static class Report
             ["errors"]      = errorsArr,
         };
 
-        var jsonOptions = new JsonSerializerOptions
-        {
-            WriteIndented = pretty,
-            Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
-        };
+        var jsonOptions = new JsonSerializerOptions { WriteIndented = pretty };
         return doc.ToJsonString(jsonOptions);
     }
 
@@ -169,5 +164,5 @@ public static class Report
         ["total"]  = s.Total,
     };
 
-    private static string NormalizePath(string path) => path.Replace('\\', '/');
+    internal static string NormalizePath(string path) => path.Replace('\\', '/');
 }

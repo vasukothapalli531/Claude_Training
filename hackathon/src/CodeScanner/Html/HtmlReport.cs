@@ -10,7 +10,7 @@ public static class HtmlReport
     {
         var json = Report.Serialize(result, analysis, options, pretty: false);
         var safeJson = TemplateRenderer.EscapeForScriptTag(json);
-        var rootPath = TemplateRenderer.HtmlEscape(NormalizePath(result.Root));
+        var rootPath = TemplateRenderer.HtmlEscape(Report.NormalizePath(result.Root));
         var ts = TemplateRenderer.HtmlEscape(timestamp.ToString("yyyy-MM-ddTHH:mm:ssK"));
         var flagsLine = TemplateRenderer.HtmlEscape(BuildFlagsLine(options));
 
@@ -24,8 +24,6 @@ public static class HtmlReport
 
         return TemplateRenderer.Render(Template.Html, values);
     }
-
-    private static string NormalizePath(string path) => path.Replace('\\', '/');
 
     private static string BuildFlagsLine(ScanOptions options)
     {

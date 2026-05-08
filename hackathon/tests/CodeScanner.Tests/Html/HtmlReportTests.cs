@@ -20,6 +20,7 @@ public class HtmlReportTests
         Assert.Contains("<html lang=\"en\">", html);
         Assert.Contains("id=\"scan-data\"", html);
         Assert.Contains("chart.umd.min.js", html);
+        Assert.DoesNotContain("{{", html);
     }
 
     [Fact]
@@ -52,7 +53,7 @@ public class HtmlReportTests
     }
 
     [Fact]
-    public void Render_EscapesScriptTagsInJsonPayload()
+    public void Render_DefaultJsonEncodingPreventsScriptInjection()
     {
         var result = new ScanResult("/x",
             new[] { new FileEntry("a.cs", ".cs", "C#", 1, false) },
@@ -69,11 +70,21 @@ public class HtmlReportTests
 
         var html = HtmlReport.Render(result, analysis, new ScanOptions { Security = true }, DateTimeOffset.UtcNow);
 
+        // The injected </script><script>alert sequence must not appear in the
+        // rendered HTML — default System.Text.Json encoding emits '<' as &lt;
+        // inside JSON string values, so the literal closing tag never reaches
+        // the page. (EscapeForScriptTag remains as defense-in-depth.)
+        Assert.DoesNotContain("</script><script>alert", html);
+
+        // The data is still parseable JSON, and the original snippet round-trips.
         var dataMatch = Regex.Match(html,
             "<script type=\"application/json\" id=\"scan-data\">(?<j>.*?)</script>",
             RegexOptions.Singleline);
         Assert.True(dataMatch.Success);
-        Assert.Contains("<\\/script>", dataMatch.Groups["j"].Value);
+        var doc = JsonDocument.Parse(dataMatch.Groups["j"].Value);
+        var snippet = doc.RootElement.GetProperty("securityIssues")[0]
+            .GetProperty("snippet").GetString();
+        Assert.Equal("</script><script>alert(1)</script>", snippet);
     }
 
     [Fact]
@@ -93,6 +104,26 @@ public class HtmlReportTests
         var html = HtmlReport.Render(result, analysis, options, DateTimeOffset.UtcNow);
 
         Assert.Contains("scan only", html);
+    }
+
+    [Fact]
+    public void Render_FlagsLine_SmellsOnly()
+    {
+        var (result, analysis, _) = Empty();
+        var options = new ScanOptions { Smells = true };
+        var html = HtmlReport.Render(result, analysis, options, DateTimeOffset.UtcNow);
+
+        Assert.Contains("--smells", html);
+    }
+
+    [Fact]
+    public void Render_FlagsLine_SecurityOnly()
+    {
+        var (result, analysis, _) = Empty();
+        var options = new ScanOptions { Security = true };
+        var html = HtmlReport.Render(result, analysis, options, DateTimeOffset.UtcNow);
+
+        Assert.Contains("--security", html);
     }
 
     [Fact]
