@@ -77,16 +77,17 @@ internal static class PromptBuilder
         var endIdx = Math.Min(lines.Length - 1, idx + SecurityContextRadius);
         if (endIdx < startIdx)
         {
+            // Source unavailable; fall back to the redacted snippet alone.
             return redactedSnippet;
         }
 
-        var sb = new StringBuilder();
-        // Prepend the redacted snippet so it is always visible regardless of source content
-        sb.Append(redactedSnippet).Append('\n');
+        // Replace the offending source line with the redacted snippet so raw
+        // secrets from disk never leak into the prompt.
+        var sb = new System.Text.StringBuilder();
         for (var i = startIdx; i <= endIdx; i++)
         {
-            sb.Append(lines[i]);
-            if (i < endIdx) { sb.Append('\n'); }
+            if (i > startIdx) { sb.Append('\n'); }
+            sb.Append(i == idx ? redactedSnippet : lines[i]);
         }
         return sb.ToString();
     }

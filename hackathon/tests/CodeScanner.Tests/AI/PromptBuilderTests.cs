@@ -58,14 +58,20 @@ public class PromptBuilderTests
         var sec = new SecurityFinding(
             "hardcoded_secret", "aws_access_key", "high", "x.cs",
             Line: 10, Column: 5,
-            Snippet: "var k = \"AKIA••••REDACTED\";",
+            Snippet: "REDACTED-LINE",
             Message: "AWS Access Key ID detected");
 
         var content = PromptBuilder.BuildUserContent(sec, source);
 
+        // Surrounding source lines (7..9 and 11..13) appear; the offending
+        // line (10) is REPLACED with the redacted snippet, so "line10" must
+        // NOT appear, only "REDACTED-LINE" appears in its place.
         Assert.Contains("line7", content);
-        Assert.Contains("line10", content);
+        Assert.Contains("line9", content);
+        Assert.Contains("REDACTED-LINE", content);
+        Assert.Contains("line11", content);
         Assert.Contains("line13", content);
+        Assert.DoesNotContain("line10", content);
         Assert.DoesNotContain("line6", content);
         Assert.DoesNotContain("line14", content);
     }
