@@ -1,3 +1,4 @@
+using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 
@@ -109,7 +110,11 @@ public static class Report
             ["errors"]      = errorsArr,
         };
 
-        var jsonOptions = new JsonSerializerOptions { WriteIndented = pretty };
+        var jsonOptions = new JsonSerializerOptions
+        {
+            WriteIndented = pretty,
+            Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
+        };
         return doc.ToJsonString(jsonOptions);
     }
 
