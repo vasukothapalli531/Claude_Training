@@ -75,7 +75,16 @@ dotnet run --project src/CodeScanner -- . --analyze --html report.html
 start report.html  # opens in default browser
 ```
 
-The generated `report.html` is a single self-contained file. It loads Chart.js v4 from `cdn.jsdelivr.net` at view time (~80 KB). Embeds a complete copy of the scan JSON in `<script id="scan-data">` so the page renders the same dashboard whenever it's opened.
+The generated `report.html` is a single self-contained dark-themed dashboard:
+
+- **Sticky header** with overall **grade A–F** (large coloured tile) and quality score / 100.
+- **4 KPI cards**: Total Files · Quality Score · Critical Issues · Estimated Fix Time.
+- **Three charts** (Chart.js v4 from CDN, ~80 KB): severity donut, top files by risk (gradient bars), 5-axis quality radar (cleanliness, security, function length, nesting, parameter hygiene).
+- **Sortable / filterable file table** with severity badges, per-row severity stack, and click-to-expand findings detail.
+
+Inter font from Google Fonts. The report embeds the full scan JSON in `<script id="scan-data">`, so it renders the same dashboard whenever opened.
+
+The JSON output (`--output`) gains five additive fields: `qualityScore`, `grade`, `estimatedFixMinutes`, `totalFunctions`, and `fileRiskScores`.
 
 ## Default skipped directories
 
