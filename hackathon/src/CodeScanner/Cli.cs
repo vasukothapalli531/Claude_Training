@@ -106,7 +106,8 @@ public static class Cli
                 analysis = new AnalysisResult(
                     Array.Empty<SmellFinding>(),
                     Array.Empty<SecurityFinding>(),
-                    Array.Empty<ScanError>());
+                    Array.Empty<ScanError>(),
+                    TotalFunctions: 0);
             }
 
             // JSON output (stdout or --output file).

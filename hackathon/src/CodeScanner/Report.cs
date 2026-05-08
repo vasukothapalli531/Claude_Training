@@ -7,7 +7,7 @@ public static class Report
 {
     public static string Serialize(ScanResult result, bool pretty)
         => Serialize(result,
-            new AnalysisResult(Array.Empty<SmellFinding>(), Array.Empty<SecurityFinding>(), Array.Empty<ScanError>()),
+            new AnalysisResult(Array.Empty<SmellFinding>(), Array.Empty<SecurityFinding>(), Array.Empty<ScanError>(), TotalFunctions: 0),
             new ScanOptions(),
             pretty);
 

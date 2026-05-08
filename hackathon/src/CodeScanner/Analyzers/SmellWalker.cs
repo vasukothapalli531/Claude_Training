@@ -26,6 +26,8 @@ internal sealed class SmellWalker : CSharpSyntaxWalker
     private readonly List<SmellFinding> _findings;
     private readonly Stack<FunctionContext> _stack = new();
 
+    public int TotalFunctions { get; private set; }
+
     public SmellWalker(string filePath, List<SmellFinding> findings)
     {
         _filePath = filePath;
@@ -111,6 +113,7 @@ internal sealed class SmellWalker : CSharpSyntaxWalker
 
     private void EnterFunction(SyntaxNode node, string name, int paramCount)
     {
+        TotalFunctions++;
         var span = node.GetLocation().GetLineSpan();
         var startLine = span.StartLinePosition.Line + 1;
         var endLine = span.EndLinePosition.Line + 1;

@@ -131,7 +131,7 @@ public class ReportTests
     public void Serialize_BackwardsCompat_NoAnalysisKeysWhenAnalysisEmpty()
     {
         var result = new ScanResult("C:/x", Array.Empty<FileEntry>(), Array.Empty<string>(), Array.Empty<ScanError>());
-        var analysis = new AnalysisResult(Array.Empty<SmellFinding>(), Array.Empty<SecurityFinding>(), Array.Empty<ScanError>());
+        var analysis = new AnalysisResult(Array.Empty<SmellFinding>(), Array.Empty<SecurityFinding>(), Array.Empty<ScanError>(), TotalFunctions: 0);
         var options = new ScanOptions();
 
         var json = Report.Serialize(result, analysis, options, pretty: false);
@@ -152,7 +152,8 @@ public class ReportTests
         var analysis = new AnalysisResult(
             Smells: new[] { new SmellFinding("long_function", "medium", "a.cs", "Foo", 1, 80, 80, 50, "msg") },
             SecurityFindings: Array.Empty<SecurityFinding>(),
-            Errors: Array.Empty<ScanError>());
+            Errors: Array.Empty<ScanError>(),
+            TotalFunctions: 0);
 
         var options = new ScanOptions { Smells = true };
 
@@ -180,7 +181,8 @@ public class ReportTests
             SecurityFindings: new[] {
                 new SecurityFinding("hardcoded_secret","aws_access_key","high","a.cs",1,5,"snip","AWS detected")
             },
-            Errors: Array.Empty<ScanError>());
+            Errors: Array.Empty<ScanError>(),
+            TotalFunctions: 0);
 
         var options = new ScanOptions { Security = true };
         var json = Report.Serialize(result, analysis, options, pretty: false);
@@ -203,7 +205,8 @@ public class ReportTests
         var analysis = new AnalysisResult(
             Smells: Array.Empty<SmellFinding>(),
             SecurityFindings: Array.Empty<SecurityFinding>(),
-            Errors: new[] { new ScanError("big.txt", "file too large for security scan") });
+            Errors: new[] { new ScanError("big.txt", "file too large for security scan") },
+            TotalFunctions: 0);
 
         var options = new ScanOptions { Security = true };
         var json = Report.Serialize(result, analysis, options, pretty: false);

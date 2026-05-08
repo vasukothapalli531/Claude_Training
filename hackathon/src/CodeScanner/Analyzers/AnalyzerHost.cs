@@ -5,7 +5,8 @@ namespace CodeScanner;
 public sealed record AnalysisResult(
     IReadOnlyList<SmellFinding> Smells,
     IReadOnlyList<SecurityFinding> SecurityFindings,
-    IReadOnlyList<ScanError> Errors);
+    IReadOnlyList<ScanError> Errors,
+    int TotalFunctions);
 
 public sealed class AnalyzerHost
 {
@@ -33,6 +34,7 @@ public sealed class AnalyzerHost
         var smells = new List<SmellFinding>();
         var securityFindings = new List<SecurityFinding>();
         var errors = new List<ScanError>();
+        var totalFunctions = 0;
 
         Matcher? skipMatcher = null;
         if (options.Security && options.SecuritySkipGlobs.Count > 0)
@@ -56,7 +58,12 @@ public sealed class AnalyzerHost
                 content ??= TryRead(path, errors);
                 if (content is not null)
                 {
-                    try { smells.AddRange(_csharpSmells.Analyze(path, content)); }
+                    try
+                    {
+                        var smellResult = _csharpSmells.Analyze(path, content);
+                        smells.AddRange(smellResult.Findings);
+                        totalFunctions += smellResult.TotalFunctions;
+                    }
                     catch (Exception ex)
                     {
                         errors.Add(new ScanError(path, $"smell analysis failed: {ex.GetType().Name}: {ex.Message}"));
@@ -103,7 +110,7 @@ public sealed class AnalyzerHost
             }
         }
 
-        return new AnalysisResult(smells, securityFindings, errors);
+        return new AnalysisResult(smells, securityFindings, errors, totalFunctions);
     }
 
     private static string? TryRead(string path, List<ScanError> errors)

@@ -7,7 +7,7 @@ public class HtmlReportTests
 {
     private static (ScanResult, AnalysisResult, ScanOptions) Empty() => (
         new ScanResult("/x", Array.Empty<FileEntry>(), Array.Empty<string>(), Array.Empty<ScanError>()),
-        new AnalysisResult(Array.Empty<SmellFinding>(), Array.Empty<SecurityFinding>(), Array.Empty<ScanError>()),
+        new AnalysisResult(Array.Empty<SmellFinding>(), Array.Empty<SecurityFinding>(), Array.Empty<ScanError>(), TotalFunctions: 0),
         new ScanOptions());
 
     [Fact]
@@ -44,7 +44,7 @@ public class HtmlReportTests
         var result = new ScanResult("path<&>\"'", Array.Empty<FileEntry>(),
             Array.Empty<string>(), Array.Empty<ScanError>());
         var analysis = new AnalysisResult(Array.Empty<SmellFinding>(),
-            Array.Empty<SecurityFinding>(), Array.Empty<ScanError>());
+            Array.Empty<SecurityFinding>(), Array.Empty<ScanError>(), TotalFunctions: 0);
 
         var html = HtmlReport.Render(result, analysis, new ScanOptions(), DateTimeOffset.UtcNow);
 
@@ -66,7 +66,8 @@ public class HtmlReportTests
                 new SecurityFinding("dangerous_function", "eval", "high", "x.js",
                     1, 1, "</script><script>alert(1)</script>", "msg"),
             },
-            Errors: Array.Empty<ScanError>());
+            Errors: Array.Empty<ScanError>(),
+            TotalFunctions: 0);
 
         var html = HtmlReport.Render(result, analysis, new ScanOptions { Security = true }, DateTimeOffset.UtcNow);
 

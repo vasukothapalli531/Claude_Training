@@ -44,3 +44,7 @@ public sealed record SecurityFinding(
     int Column,
     string Snippet,
     string Message);
+
+public sealed record SmellAnalysisResult(
+    IReadOnlyList<SmellFinding> Findings,
+    int TotalFunctions);
